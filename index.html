@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trivia - Hasta 4 Jugadores</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4a90e2;
+      --correct: #4CAF50;
+      --wrong: #f44336;
+      --bg: #f8fbff;
+      --card: #ffffff;
+      --text: #333;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', Arial, sans-serif;
+      background: var(--bg);
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--card);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      margin-top: 0;
+      color: var(--primary);
+      font-size: 1.8em;
+    }
+
+    #turnCounter {
+      font-size: 1.2em;
+      font-weight: 700;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    #timer {
+      font-size: 1.3em;
+      font-weight: 700;
+      margin: 12px 0;
+      color: var(--primary);
+      transition: color 0.3s;
+    }
+
+    .option-btn {
+      display: block;
+      width: 90%;
+      margin: 10px auto;
+      padding: 14px;
+      font-size: 1.05em;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      background: #357abd;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .option-btn.correct {
+      background: var(--correct);
+      transform: scale(1.02);
+    }
+
+    .option-btn.wrong {
+      background: var(--wrong);
+    }
+
+    #scoreboard {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 15px 0;
+      font-weight: 600;
+      padding: 10px;
+      background: rgba(74, 144, 226, 0.08);
+      border-radius: 10px;
+    }
+
+    #playerNames {
+      margin: 16px 0;
+    }
+
+    #playerNames input {
+      margin: 6px;
+      padding: 10px;
+      width: 140px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-family: inherit;
+      text-align: center;
+    }
+
+    #playerNames input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    button {
+      padding: 12px 24px;
+      font-size: 1.1em;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s;
+    }
+
+    button:hover:not(:disabled) {
+      background: #357abd;
+    }
+
+    #next {
+      display: none;
+      margin-top: 20px;
+      background: #5c6bc0;
+    }
+
+    #restart {
+      display: none;
+      margin-top: 20px;
+      background: #689f38;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 16px;
+      }
+      .option-btn {
+        width: 95%;
+        padding: 12px;
+      }
+      #playerNames input {
+        width: 120px;
+        font-size: 0.95em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎮 Trivia - Hasta 4 Jugadores</h1>
+
+    <!-- Pantalla de inicio -->
+    <div id="setup">
+      <label for="players">Número de jugadores:</label>
+      <select id="players" aria-label="Selecciona número de jugadores">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+      <div id="playerNames"></div>
+      <button id="start">¡Empezar juego!</button>
+    </div>
+
+    <!-- Juego -->
+    <div id="game" class="hidden">
+      <div id="turnCounter">Turno 1</div>
+      <div id="timer">⏳ Tiempo: 10 segundos</div>
+      <div id="scoreboard"></div>
+      <div id="question" class="fade-in"></div>
+      <div id="options"></div>
+      <button id="next">Siguiente</button>
+      <button id="restart">Jugar de nuevo</button>
+    </div>
+  </div>
+
+  <script>
+    const preguntasOriginales = [
+  // Geografía
+  { cat: "Geografía", q: "¿Cuál es la capital de Francia?", o: ["Londres", "Berlín", "París", "Roma"], a: 2 },
+  { cat: "Geografía", q: "¿En qué continente se encuentra Egipto?", o: ["Asia", "África", "Europa", "América"], a: 1 },
+  { cat: "Geografía", q: "¿Cuál es el país más grande del mundo por superficie?", o: ["China", "Estados Unidos", "Rusia", "Canadá"], a: 2 },
+  { cat: "Geografía", q: "¿Qué país tiene forma de bota?", o: ["México", "Italia", "Grecia", "Tailandia"], a: 1 },
+  { cat: "Geografía", q: "¿Cuál es la capital de Japón?", o: ["Seúl", "Pekín", "Tokio", "Bangkok"], a: 2 },
+  { cat: "Geografía", q: "¿Cuál es el océano más grande del mundo?", o: ["Atlántico", "Índico", "Ártico", "Pacífico"], a: 3 },
+
+  // Ciencia
+  { cat: "Ciencia", q: "¿Cuál es el símbolo químico del oro?", o: ["Ag", "Fe", "Au", "O"], a: 2 },
+  { cat: "Ciencia", q: "¿Cuál es el planeta más cercano al Sol?", o: ["Venus", "Marte", "Mercurio", "Tierra"], a: 2 },
+  { cat: "Ciencia", q: "¿Qué gas absorben las plantas para realizar la fotosíntesis?", o: ["Oxígeno", "Nitrógeno", "Dióxido de carbono", "Hidrógeno"], a: 2 },
+  { cat: "Ciencia", q: "¿Cuántos huesos tiene el cuerpo humano adulto?", o: ["206", "300", "150", "250"], a: 0 },
+  { cat: "Ciencia", q: "¿Qué partícula subatómica tiene carga negativa?", o: ["Protón", "Neutrón", "Electrón", "Quark"], a: 2 },
+
+  // Historia
+  { cat: "Historia", q: "¿En qué año llegó el hombre a la Luna?", o: ["1967", "1969", "1971", "1973"], a: 1 },
+  { cat: "Historia", q: "¿Quién fue el primer presidente de Estados Unidos?", o: ["Thomas Jefferson", "Abraham Lincoln", "George Washington", "Benjamin Franklin"], a: 2 },
+  { cat: "Historia", q: "¿En qué año comenzó la Segunda Guerra Mundial?", o: ["1935", "1939", "1941", "1945"], a: 1 },
+  { cat: "Historia", q: "¿Qué civilización construyó las pirámides de Giza?", o: ["Maya", "Azteca", "Egipcia", "Inca"], a: 2 },
+  { cat: "Historia", q: "¿Quién fue conocido como 'El Libertador' en América Latina?", o: ["José de San Martín", "Miguel Hidalgo", "Simón Bolívar", "Bernardo O'Higgins"], a: 2 },
+
+  // Deportes
+  { cat: "Deportes", q: "¿Cuántos jugadores hay en un equipo de fútbol en el campo?", o: ["10", "11", "12", "9"], a: 1 },
+  { cat: "Deportes", q: "¿En qué deporte se usa una raqueta y una pelota amarilla?", o: ["Bádminton", "Tenis", "Squash", "Ping pong"], a: 1 },
+  { cat: "Deportes", q: "¿Qué país ganó la Copa Mundial de la FIFA en 2022?", o: ["Francia", "Brasil", "Argentina", "Alemania"], a: 2 },
+  { cat: "Deportes", q: "¿Cuántos aros tiene una cancha de baloncesto?", o: ["1", "2", "3", "4"], a: 1 },
+  { cat: "Deportes", q: "¿En qué deporte se practica el 'Grand Slam'?", o: ["Golf", "Tenis", "Boxeo", "Fórmula 1"], a: 1 },
+
+  // Entretenimiento / Cine / Música
+  { cat: "Entretenimiento", q: "¿Qué actor interpretó a Iron Man?", o: ["Chris Evans", "Robert Downey Jr.", "Tom Holland", "Mark Ruffalo"], a: 1 },
+  { cat: "Cine", q: "¿Cuál es la película más taquillera de la historia (ajustada por inflación)?", o: ["Avengers: Endgame", "Avatar", "Titanic", "Lo que el viento se llevó"], a: 3 },
+  { cat: "Entretenimiento", q: "¿Cuántas películas componen la saga original de Star Wars (1977-1983)?", o: ["3", "6", "9", "4"], a: 0 },
+  { cat: "Música", q: "¿Qué banda lanzó el álbum 'The Dark Side of the Moon'?", o: ["The Beatles", "Led Zeppelin", "Pink Floyd", "Queen"], a: 2 },
+  { cat: "Música", q: "¿Quién es conocido como el 'Rey del Pop'?", o: ["Elvis Presley", "Prince", "Michael Jackson", "Justin Timberlake"], a: 2 },
+
+  // Literatura y Arte
+  { cat: "Literatura", q: "¿Quién escribió 'Cien años de soledad'?", o: ["Mario Vargas Llosa", "Gabriel García Márquez", "Julio Cortázar", "Isabel Allende"], a: 1 },
+  { cat: "Literatura", q: "¿Quién es el autor de 'Don Quijote de la Mancha'?", o: ["Lope de Vega", "Miguel de Cervantes", "Federico García Lorca", "Antonio Machado"], a: 1 },
+  { cat: "Arte", q: "¿Quién pintó 'La noche estrellada'?", o: ["Pablo Picasso", "Claude Monet", "Vincent van Gogh", "Salvador Dalí"], a: 2 },
+  { cat: "Arte", q: "¿Dónde se encuentra la obra 'La Gioconda'?", o: ["Museo del Prado", "Louvre", "Vaticano", "Metropolitan"], a: 1 },
+  { cat: "Literatura", q: "¿En qué idioma fue originalmente escrita 'La Divina Comedia'?", o: ["Latín", "Italiano", "Francés", "Griego"], a: 1 },
+
+  // Tecnología
+  { cat: "Tecnología", q: "¿Qué lenguaje se usa principalmente para estilizar páginas web?", o: ["JavaScript", "Python", "CSS", "PHP"], a: 2 },
+  { cat: "Tecnología", q: "¿Qué empresa desarrolló el sistema operativo Windows?", o: ["Apple", "Microsoft", "Google", "IBM"], a: 1 },
+  { cat: "Tecnología", q: "¿Qué sigla significa 'URL'?", o: ["Uniform Resource Locator", "Universal Redirect Link", "User Request Language", "Unit Resource Link"], a: 0 },
+  { cat: "Tecnología", q: "¿Quién es el fundador de Tesla y SpaceX?", o: ["Jeff Bezos", "Bill Gates", "Elon Musk", "Mark Zuckerberg"], a: 2 },
+  { cat: "Tecnología", q: "¿Qué navegador fue creado por Google?", o: ["Firefox", "Safari", "Chrome", "Edge"], a: 2 },
+
+  // Cultura General / Curiosidades
+  { cat: "Cultura", q: "¿Cuál es el río más largo del mundo?", o: ["Nilo", "Amazonas", "Misisipi", "Danubio"], a: 1 },
+  { cat: "Cultura", q: "¿Cuál es el idioma más hablado del mundo?", o: ["Inglés", "Español", "Chino mandarín", "Hindi"], a: 2 },
+  { cat: "Animales", q: "¿Cuál es el mamífero más grande del mundo?", o: ["Elefante africano", "Ballena azul", "Jirafa", "Orca"], a: 1 },
+  { cat: "Animales", q: "¿Qué animal es conocido como el 'rey de la selva'?", o: ["Tigre", "Leopardo", "León", "Oso"], a: 2 },
+  { cat: "Curiosidades", q: "¿Cuántos colores tiene un arcoíris?", o: ["5", "6", "7", "8"], a: 2 },
+
+  // Matemáticas
+  { cat: "Matemáticas", q: "¿Cuánto es el valor de π (pi) aproximadamente?", o: ["3.14", "2.71", "1.61", "3.41"], a: 0 },
+  { cat: "Matemáticas", q: "¿Cuántos lados tiene un hexágono?", o: ["5", "6", "7", "8"], a: 1 },
+  { cat: "Matemáticas", q: "¿Qué número es considerado 'neutro' en la suma?", o: ["0", "1", "-1", "10"], a: 0 },
+  { cat: "Matemáticas", q: "¿Cuál es la raíz cuadrada de 64?", o: ["6", "7", "8", "9"], a: 2 },
+
+  // Cine y Series
+  { cat: "Cine", q: "¿Quién dirigió la película 'Parasite'?", o: ["Hirokazu Kore-eda", "Bong Joon-ho", "Akira Kurosawa", "Park Chan-wook"], a: 1 },
+  { cat: "Series", q: "¿En qué ciudad se desarrolla 'Friends'?", o: ["Los Ángeles", "Chicago", "Nueva York", "Miami"], a: 2 },
+
+  // Deportes (extra)
+  { cat: "Deportes", q: "¿Cuántos hoyos tiene un campo estándar de golf?", o: ["9", "12", "18", "21"], a: 2 },
+  { cat: "Deportes", q: "¿Qué país ha ganado más Copas del Mundo de fútbol?", o: ["Alemania", "Italia", "Brasil", "Argentina"], a: 2 },
+
+  // Ciencia (extra)
+  { cat: "Ciencia", q: "¿Cuál es la unidad básica de la vida?", o: ["Átomo", "Molécula", "Célula", "Tejido"], a: 2 },
+  { cat: "Ciencia", q: "¿Qué planeta es conocido como el 'planeta rojo'?", o: ["Venus", "Júpiter", "Marte", "Saturno"], a: 2 },
+
+  // Cultura (extra)
+  { cat: "Cultura", q: "¿Cuál es la moneda oficial de Japón?", o: ["Yuan", "Won", "Yen", "Ringgit"], a: 2 },
+  { cat: "Cultura", q: "¿En qué país se originó el karaoke?", o: ["Corea del Sur", "China", "Japón", "Tailandia"], a: 2 },
+
+  // --- NUEVAS 200 PREGUNTAS ---
+
+// Geografía (10)
+{ cat: "Geografía", q: "¿Cuál es la capital de Australia?", o: ["Sídney", "Melbourne", "Canberra", "Brisbane"], a: 2 },
+{ cat: "Geografía", q: "¿Qué país es el más pequeño del mundo por área?", o: ["Mónaco", "Malta", "Vaticano", "San Marino"], a: 2 },
+{ cat: "Geografía", q: "¿En qué país se encuentra el desierto del Sahara?", o: ["Arabia Saudita", "México", "Argelia", "Egipto"], a: 2 },
+{ cat: "Geografía", q: "¿Cuál es la montaña más alta del mundo?", o: ["K2", "Kangchenjunga", "Monte Everest", "Makalu"], a: 2 },
+{ cat: "Geografía", q: "¿Qué río pasa por la ciudad de París?", o: ["Ródano", "Loira", "Sena", "Mosela"], a: 2 },
+{ cat: "Geografía", q: "¿Cuál es el único país que limita con Brasil y no habla español (excepto Brasil)?", o: ["Perú", "Colombia", "Guayana Francesa", "Surinam"], a: 2 },
+{ cat: "Geografía", q: "¿En qué océano se encuentra Madagascar?", o: ["Pacífico", "Atlántico", "Índico", "Ártico"], a: 2 },
+{ cat: "Geografía", q: "¿Cuál es la capital de Canadá?", o: ["Toronto", "Vancouver", "Ottawa", "Montreal"], a: 2 },
+{ cat: "Geografía", q: "¿Qué país tiene la mayor cantidad de islas del mundo?", o: ["Indonesia", "Filipinas", "Suecia", "Noruega"], a: 2 },
+{ cat: "Geografía", q: "¿Cuál es el lago más grande del mundo por superficie?", o: ["Lago Superior", "Mar Caspio", "Lago Victoria", "Lago Baikal"], a: 1 },
+
+// Ciencia (15)
+{ cat: "Ciencia", q: "¿Cuál es el metal más abundante en la corteza terrestre?", o: ["Hierro", "Aluminio", "Cobre", "Plata"], a: 1 },
+{ cat: "Ciencia", q: "¿Qué tipo de sangre es el donante universal?", o: ["A+", "B-", "AB+", "O-"], a: 3 },
+{ cat: "Ciencia", q: "¿Cuántos elementos hay en la tabla periódica actual?", o: ["112", "118", "120", "126"], a: 1 },
+{ cat: "Ciencia", q: "¿Qué orgánulo celular produce energía (ATP)?", o: ["Núcleo", "Mitocondria", "Lisosoma", "Ribosoma"], a: 1 },
+{ cat: "Ciencia", q: "¿Cuál es el elemento más ligero?", o: ["Helio", "Hidrógeno", "Litio", "Oxígeno"], a: 1 },
+{ cat: "Ciencia", q: "¿Qué vitamina se produce con la exposición al sol?", o: ["Vitamina A", "Vitamina C", "Vitamina D", "Vitamina K"], a: 2 },
+{ cat: "Ciencia", q: "¿Cómo se llama el estudio de los fósiles?", o: ["Geología", "Paleontología", "Arqueología", "Biología"], a: 1 },
+{ cat: "Ciencia", q: "¿Cuál es la velocidad de la luz en el vacío?", o: ["300,000 km/s", "150,000 km/s", "500,000 km/s", "1,000,000 km/s"], a: 0 },
+{ cat: "Ciencia", q: "¿Cuántos dientes tiene un adulto humano promedio?", o: ["28", "30", "32", "34"], a: 2 },
+{ cat: "Ciencia", q: "¿Qué planeta tiene la mayor cantidad de lunas?", o: ["Júpiter", "Saturno", "Urano", "Neptuno"], a: 1 },
+{ cat: "Ciencia", q: "¿Qué tipo de ondas no pueden viajar en el vacío?", o: ["Electromagnéticas", "Luz", "Sonido", "Radio"], a: 2 },
+{ cat: "Ciencia", q: "¿Cuál es el metal que es líquido a temperatura ambiente?", o: ["Mercurio", "Galio", "Bromo", "Francio"], a: 0 },
+{ cat: "Ciencia", q: "¿Qué inventó Alexander Graham Bell?", o: ["Teléfono", "Radio", "Televisión", "Computadora"], a: 0 },
+{ cat: "Ciencia", q: "¿Qué porcentaje del cuerpo humano es agua?", o: ["50%", "60%", "70%", "80%"], a: 2 },
+{ cat: "Ciencia", q: "¿Cuál es el ácido presente en el estómago?", o: ["Ácido acético", "Ácido clorhídrico", "Ácido sulfúrico", "Ácido nítrico"], a: 1 },
+
+// Historia (15)
+{ cat: "Historia", q: "¿En qué siglo cayó el Imperio Romano de Occidente?", o: ["V", "IV", "VI", "III"], a: 0 },
+{ cat: "Historia", q: "¿Quién fue el último zar de Rusia?", o: ["Nicolás II", "Pedro el Grande", "Alejandro I", "Iván el Terrible"], a: 0 },
+{ cat: "Historia", q: "¿En qué año se firmó la Declaración de Independencia de EE.UU.?", o: ["1775", "1776", "1781", "1789"], a: 1 },
+{ cat: "Historia", q: "¿Qué imperio construyó Machu Picchu?", o: ["Azteca", "Maya", "Inca", "Olmeca"], a: 2 },
+{ cat: "Historia", q: "¿Quién fue Nelson Mandela?", o: ["Presidente de Kenia", "Líder antiapartheid de Sudáfrica", "Rey de Egipto", "General francés"], a: 1 },
+{ cat: "Historia", q: "¿En qué país ocurrió la Revolución Francesa?", o: ["Italia", "Francia", "Alemania", "España"], a: 1 },
+{ cat: "Historia", q: "¿Qué civilización inventó el cero?", o: ["Griegos", "Romanos", "Mayas", "Chinos"], a: 2 },
+{ cat: "Historia", q: "¿Qué país fue invadido en la 'Operación Barbarroja'?", o: ["Polonia", "Francia", "Unión Soviética", "Reino Unido"], a: 2 },
+{ cat: "Historia", q: "¿Quién escribió 'El origen de las especies'?", o: ["Gregor Mendel", "Isaac Newton", "Charles Darwin", "Albert Einstein"], a: 2 },
+{ cat: "Historia", q: "¿Cuál fue la primera civilización en usar el alfabeto?", o: ["Sumeria", "Egipto", "Fenicia", "Grecia"], a: 2 },
+{ cat: "Historia", q: "¿En qué año terminó la Guerra Fría?", o: ["1989", "1991", "1995", "2001"], a: 1 },
+{ cat: "Historia", q: "¿Quién fue Juana de Arco?", o: ["Reina de Inglaterra", "Santa y heroína francesa", "Emperatriz romana", "Filósofa griega"], a: 1 },
+{ cat: "Historia", q: "¿Qué año marcó el inicio de la Primera Guerra Mundial?", o: ["1914", "1916", "1918", "1912"], a: 0 },
+{ cat: "Historia", q: "¿Qué país fue colonizado por Portugal en Sudamérica?", o: ["Argentina", "Chile", "Brasil", "Uruguay"], a: 2 },
+{ cat: "Historia", q: "¿Qué emperador romano legalizó el cristianismo?", o: ["Nerón", "Constantino", "Augusto", "Trajano"], a: 1 },
+
+// Deportes (15)
+{ cat: "Deportes", q: "¿Cuántos puntos vale un touchdown en el fútbol americano?", o: ["4", "6", "7", "3"], a: 1 },
+{ cat: "Deportes", q: "¿Qué atleta tiene más medallas olímpicas en la historia?", o: ["Usain Bolt", "Carl Lewis", "Michael Phelps", "Simone Biles"], a: 2 },
+{ cat: "Deportes", q: "¿En qué país se originó el fútbol moderno?", o: ["Italia", "Francia", "Inglaterra", "Alemania"], a: 2 },
+{ cat: "Deportes", q: "¿Cuál es el deporte nacional de Japón?", o: ["Karate", "Judo", "Sumo", "Kendo"], a: 2 },
+{ cat: "Deportes", q: "¿Cuántos jugadores hay en un equipo de rugby?", o: ["11", "13", "15", "18"], a: 2 },
+{ cat: "Deportes", q: "¿En qué año se celebraron los primeros Juegos Olímpicos modernos?", o: ["1896", "1900", "1912", "1888"], a: 0 },
+{ cat: "Deportes", q: "¿Qué equipo tiene más títulos de la NBA?", o: ["Chicago Bulls", "LA Lakers", "Boston Celtics", "Golden State"], a: 2 },
+{ cat: "Deportes", q: "¿Quién es conocido como 'El Caballo' en el fútbol argentino?", o: ["Maradona", "Messi", "Di Stéfano", "Batistuta"], a: 3 },
+{ cat: "Deportes", q: "¿En qué deporte se usa el término 'hat-trick'?", o: ["Fútbol", "Tenis", "Golf", "Béisbol"], a: 0 },
+{ cat: "Deportes", q: "¿Cuál es el único país que ha participado en todas las Copas del Mundo?", o: ["Brasil", "Argentina", "Italia", "Alemania"], a: 0 },
+{ cat: "Deportes", q: "¿Cuántas bases hay en el béisbol?", o: ["2", "3", "4", "5"], a: 2 },
+{ cat: "Deportes", q: "¿Qué país creó el voleibol?", o: ["Brasil", "Estados Unidos", "Italia", "Rusia"], a: 1 },
+{ cat: "Deportes", q: "¿Quién tiene el récord de más Grand Slams en tenis masculino?", o: ["Rafael Nadal", "Roger Federer", "Novak Djokovic", "Pete Sampras"], a: 2 },
+{ cat: "Deportes", q: "¿Qué equipo ganó la Eurocopa 2024?", o: ["Francia", "España", "Inglaterra", "Alemania"], a: 1 },
+{ cat: "Deportes", q: "¿Cuántos minutos dura un partido de baloncesto profesional (NBA)?", o: ["40", "48", "50", "45"], a: 1 },
+
+// Cine (15)
+{ cat: "Cine", q: "¿Quién dirigió 'El Padrino'?", o: ["Martin Scorsese", "Francis Ford Coppola", "Steven Spielberg", "Quentin Tarantino"], a: 1 },
+{ cat: "Cine", q: "¿Cuál es el nombre del perro de Buzz Lightyear en 'Toy Story'?", o: ["Rex", "Slinky", "Woody", "No tiene perro"], a: 3 },
+{ cat: "Cine", q: "¿Quién interpretó a Jack en 'Titanic'?", o: ["Brad Pitt", "Johnny Depp", "Leonardo DiCaprio", "Matt Damon"], a: 2 },
+{ cat: "Cine", q: "¿Cuántas películas tiene la saga original de 'Harry Potter'?", o: ["6", "7", "8", "9"], a: 2 },
+{ cat: "Cine", q: "¿Qué película ganó el Óscar a Mejor Película en 2024?", o: ["Barbie", "Oppenheimer", "Poor Things", "The Holdovers"], a: 1 },
+{ cat: "Cine", q: "¿Cuál es la primera película animada de Disney?", o: ["Blancanieves", "Cenicienta", "Dumbo", "Bambi"], a: 0 },
+{ cat: "Cine", q: "¿En qué ciudad se filmó gran parte de 'La La Land'?", o: ["Nueva York", "Chicago", "Los Ángeles", "San Francisco"], a: 2 },
+{ cat: "Cine", q: "¿Qué actor fue Gandalf en 'El Señor de los Anillos'?", o: ["Patrick Stewart", "Ian McKellen", "Christopher Lee", "Michael Caine"], a: 1 },
+{ cat: "Cine", q: "¿Cuál es el superhéroe más antiguo de Marvel?", o: ["Capitán América", "Hulk", "Thor", "Iron Man"], a: 0 },
+{ cat: "Cine", q: "¿Quién es el director de 'Inception'?", o: ["James Cameron", "Christopher Nolan", "Denis Villeneuve", "Ridley Scott"], a: 1 },
+{ cat: "Cine", q: "¿Qué película tiene el récord de recaudación ajustado por inflación?", o: ["Avengers: Endgame", "Avatar", "Titanic", "Lo que el viento se llevó"], a: 3 },
+{ cat: "Cine", q: "¿Cuántos Óscars ganó 'El Señor de los Anillos: El retorno del rey'?", o: ["9", "11", "13", "7"], a: 1 },
+{ cat: "Cine", q: "¿Quién interpretó a Hermione Granger?", o: ["Emma Thompson", "Emma Watson", "Keira Knightley", "Natalie Portman"], a: 1 },
+{ cat: "Cine", q: "¿Qué estudio produjo 'Shrek'?", o: ["Pixar", "DreamWorks", "Disney", "Blue Sky"], a: 1 },
+{ cat: "Cine", q: "¿Cuál es el nombre real de Baby Yoda?", o: ["Yoda Jr.", "Grogu", "Mando", "The Child"], a: 1 },
+
+// Música (15)
+{ cat: "Música", q: "¿Qué banda lanzó 'Bohemian Rhapsody'?", o: ["The Rolling Stones", "Led Zeppelin", "Queen", "The Who"], a: 2 },
+{ cat: "Música", q: "¿Cuántas cuerdas tiene una guitarra estándar?", o: ["4", "5", "6", "7"], a: 2 },
+{ cat: "Música", q: "¿Quién cantó 'Like a Rolling Stone'?", o: ["Elvis Presley", "Bob Dylan", "The Beatles", "Johnny Cash"], a: 1 },
+{ cat: "Música", q: "¿En qué país nació Mozart?", o: ["Alemania", "Italia", "Francia", "Austria"], a: 3 },
+{ cat: "Música", q: "¿Cuál es el álbum más vendido de la historia?", o: ["Thriller", "Back in Black", "The Dark Side of the Moon", "Abbey Road"], a: 0 },
+{ cat: "Música", q: "¿Qué instrumento tocaba Louis Armstrong?", o: ["Piano", "Trompeta", "Saxofón", "Violín"], a: 1 },
+{ cat: "Música", q: "¿Quién es la 'Reina del Soul'?", o: ["Whitney Houston", "Aretha Franklin", "Diana Ross", "Tina Turner"], a: 1 },
+{ cat: "Música", q: "¿Cuántas notas hay en la escala musical occidental?", o: ["5", "7", "8", "12"], a: 1 },
+{ cat: "Música", q: "¿Qué banda británica fue conocida como 'The Fab Four'?", o: ["The Rolling Stones", "The Who", "The Beatles", "Pink Floyd"], a: 2 },
+{ cat: "Música", q: "¿Cuál es el género musical originario de Jamaica?", o: ["Salsa", "Reggaetón", "Reggae", "Calypso"], a: 2 },
+{ cat: "Música", q: "¿Quién escribió 'Imagine'?", o: ["Paul McCartney", "John Lennon", "George Harrison", "Ringo Starr"], a: 1 },
+{ cat: "Música", q: "¿cual fue la primera banda de ska?", o: ["madness", "skatalites", "skalarriat", "Atomic  rock"], a: 1 },
+{ cat: "Música", q: "¿Cuál es el himno nacional de Francia?", o: ["La Marsellesa", "Vive la France", "Liberté", "Chant du Départ"], a: 0 },
+{ cat: "Música", q: "¿Qué cantante es conocido como 'El Divo'?", o: ["Enrique Iglesias", "Luis Miguel", "Andrea Bocelli", "Plácido Domingo"], a: 2 },
+{ cat: "Música", q: "¿que estilo musical nacio en Jamaica y en el 69 dio salto a londres?", o: ["reggae", "reggaeton", "sala", "ska"], a: 3 },
+
+// Literatura (10)
+{ cat: "Literatura", q: "¿Quién escribió '1984'?", o: ["Aldous Huxley", "George Orwell", "Ray Bradbury", "Jules Verne"], a: 1 },
+{ cat: "Literatura", q: "¿En qué ciudad transcurre 'Romeo y Julieta'?", o: ["Venecia", "Milán", "Verona", "Florencia"], a: 2 },
+{ cat: "Literatura", q: "¿Quién es el autor de 'El Principito'?", o: ["Victor Hugo", "Antoine de Saint-Exupéry", "Albert Camus", "Jean-Paul Sartre"], a: 1 },
+{ cat: "Literatura", q: "¿Cuál es la primera novela de la literatura occidental?", o: ["La Ilíada", "Don Quijote", "La Odisea", "El Cantar de Mio Cid"], a: 1 },
+{ cat: "Literatura", q: "¿Qué lenguaje se inventó para 'El Señor de los Anillos'?", o: ["Dothraki", "Klingon", "Élfico", "Valyrio"], a: 2 },
+{ cat: "Literatura", q: "¿Quién escribió 'La metamorfosis'?", o: ["Franz Kafka", "Fyodor Dostoyevsky", "Leo Tolstoy", "Hermann Hesse"], a: 0 },
+{ cat: "Literatura", q: "¿Cuál es el nombre del protagonista de 'Moby Dick'?", o: ["Ahab", "Ishmael", "Starbuck", "Queequeg"], a: 1 },
+{ cat: "Literatura", q: "¿Qué poeta escribió 'Canto general'?", o: ["Pablo Neruda", "Gabriela Mistral", "César Vallejo", "Octavio Paz"], a: 0 },
+{ cat: "Literatura", q: "¿Quien escribio 'La canción del Pirata'?", o: ["Espronceda", "Calderon de la Barca", "Lope de Vega", "Azorín"], a: 0 },
+{ cat: "Literatura", q: "¿Cuál es el seudónimo de Samuel Clemens?", o: ["Mark Twain", "George Orwell", "Lewis Carroll", "O. Henry"], a: 0 },
+
+// Tecnología (10)
+{ cat: "Tecnología", q: "¿Qué empresa creó el iPhone?", o: ["Samsung", "Apple", "Google", "Microsoft"], a: 1 },
+{ cat: "Tecnología", q: "¿Qué significa 'Wi-Fi'?", o: ["Wireless Fidelity", "Wireless Fiber", "Wide Fidelity", "No significa nada (marca registrada)"], a: 3 },
+{ cat: "Tecnología", q: "¿Cuál fue el primer video en YouTube?", o: ["'Lazy Sunday'", "'Me at the zoo'", "'Charlie Bit My Finger'", "'Gangnam Style'"], a: 1 },
+{ cat: "Tecnología", q: "¿Qué lenguaje se usa para crear aplicaciones Android?", o: ["Swift", "Kotlin", "JavaScript", "C++"], a: 1 },
+{ cat: "Tecnología", q: "¿Quién co-fundó Apple junto con Steve Jobs?", o: ["Bill Gates", "Steve Wozniak", "Tim Cook", "Ronald Wayne"], a: 1 },
+{ cat: "Tecnología", q: "¿Qué es un 'bit'?", o: ["Unidad de almacenamiento", "Unidad de procesamiento", "Unidad mínima de información", "Tipo de virus"], a: 2 },
+{ cat: "Tecnología", q: "¿Cuál es el sistema operativo de código abierto más usado?", o: ["Windows", "macOS", "Linux", "Android"], a: 2 },
+{ cat: "Tecnología", q: "¿Qué empresa posee Instagram?", o: ["Twitter", "Meta", "Google", "Snapchat"], a: 1 },
+{ cat: "Tecnología", q: "¿Qué protocolo se usa para enviar correos electrónicos?", o: ["HTTP", "FTP", "SMTP", "TCP"], a: 2 },
+{ cat: "Tecnología", q: "¿Cuál es el nombre del asistente virtual de Apple?", o: ["Cortana", "Siri", "Alexa", "Google Assistant"], a: 1 },
+
+// Cultura General (15)
+{ cat: "Cultura", q: "¿Cuántos países hay en América del Sur?", o: ["10", "12", "13", "14"], a: 1 },
+{ cat: "Cultura", q: "¿Qué país tiene la bandera más antigua del mundo?", o: ["Dinamarca", "Suiza", "Japón", "Francia"], a: 0 },
+{ cat: "Cultura", q: "¿Cuál es el idioma oficial de Brasil?", o: ["Español", "Portugués", "Inglés", "Brasileño"], a: 1 },
+{ cat: "Cultura", q: "¿Cuántos continentes hay según la mayoría de los modelos?", o: ["5", "6", "7", "8"], a: 2 },
+{ cat: "Cultura", q: "¿Qué día se celebra la Navidad?", o: ["24 de diciembre", "25 de diciembre", "1 de enero", "6 de enero"], a: 1 },
+{ cat: "Cultura", q: "¿Cuál es el animal nacional de Estados Unidos?", o: ["Águila calva", "Oso pardo", "Búfalo", "Coyote"], a: 0 },
+{ cat: "Cultura", q: "¿Qué país inventó el papel higiénico?", o: ["China", "Egipto", "Inglaterra", "Estados Unidos"], a: 0 },
+{ cat: "Cultura", q: "¿Cuál es el plato nacional de México?", o: ["Tacos", "Mole", "Pozole", "Chiles en nogada"], a: 1 },
+{ cat: "Cultura", q: "¿Quien escribio 'Don Juan Tenorio?", o: ["Stevphen kin", "Lopez de Vega", "Miguel de Cervantes", "Azorin"], a: 3 },
+{ cat: "Cultura", q: "¿Cuál es el metal más caro del mundo?", o: ["Oro", "Platino", "Rodio", "Paladio"], a: 2 },
+{ cat: "Cultura", q: "¿Qué significa 'RSVP'?", o: ["Regresa pronto", "Responde, por favor", "Reunión social muy privada", "No aplica"], a: 1 },
+{ cat: "Cultura", q: "¿Cuál es la fruta más consumida del mundo?", o: ["Manzana", "Plátano", "Naranja", "Uva"], a: 1 },
+{ cat: "Cultura", q: "¿Cuántos huesos tiene un recién nacido?", o: ["206", "270", "300", "180"], a: 1 },
+{ cat: "Cultura", q: "¿Qué país es famoso por sus tulipanes?", o: ["Francia", "Italia", "Países Bajos", "Suiza"], a: 2 },
+{ cat: "Cultura", q: "¿Cuál es el país más visitado del mundo?", o: ["Italia", "Francia", "España", "Estados Unidos"], a: 1 },
+
+// Animales (10)
+{ cat: "Animales", q: "¿Cuál es el único mamífero que puede volar?", o: ["Ardilla voladora", "Murciélago", "Colugo", "Petauro"], a: 1 },
+{ cat: "Animales", q: "¿Cuántos corazones tiene un pulpo?", o: ["1", "2", "3", "4"], a: 2 },
+{ cat: "Animales", q: "¿Qué animal duerme de pie?", o: ["Elefante", "Jirafa", "Caballo", "Cebra"], a: 2 },
+{ cat: "Animales", q: "¿Cuál es el ave más grande del mundo?", o: ["Águila", "Albatros", "Avestruz", "Cóndor"], a: 2 },
+{ cat: "Animales", q: "¿Qué animal tiene la lengua más larga en proporción a su cuerpo?", o: ["Camaleón", "Murciélago", "Colibrí", "Hormiguero"], a: 0 },
+{ cat: "Animales", q: "¿Cuál es el insecto más fuerte del mundo?", o: ["Hormiga", "Escarabajo rinoceronte", "Abeja", "Grillo"], a: 1 },
+{ cat: "Animales", q: "¿Qué mamífero pone huevos?", o: ["Murciélago", "Ornitorrinco", "Topo", "Zorrillo"], a: 1 },
+{ cat: "Animales", q: "¿Cuántos años puede vivir una tortuga gigante?", o: ["50", "100", "150", "200+"], a: 3 },
+{ cat: "Animales", q: "¿Qué animal tiene ojos más grandes que su cerebro?", o: ["Pulpo", "Avestruz", "Búho", "Tiburón"], a: 1 },
+{ cat: "Animales", q: "¿Cuál es el felino más rápido?", o: ["León", "Tigre", "Guepardo", "Leopardo"], a: 2 },
+
+// Matemáticas (10)
+{ cat: "Matemáticas", q: "¿Cuánto es 7 × 8?", o: ["54", "56", "58", "63"], a: 1 },
+{ cat: "Matemáticas", q: "¿Cuál es el número primo más pequeño?", o: ["0", "1", "2", "3"], a: 2 },
+{ cat: "Matemáticas", q: "¿Cuál es el perímetro de un cuadrado de lado 5?", o: ["10", "20", "25", "15"], a: 1 },
+{ cat: "Matemáticas", q: "¿Qué número sigue en la secuencia: 1, 1, 2, 3, 5, 8...?", o: ["10", "11", "12", "13"], a: 3 },
+{ cat: "Matemáticas", q: "¿Cuántos grados tiene un triángulo equilátero?", o: ["60°", "90°", "120°", "180°"], a: 3 },
+{ cat: "Matemáticas", q: "¿Qué número es el resultado de elevar -2 al cuadrado?", o: ["-4", "4", "2", "-2"], a: 1 },
+{ cat: "Matemáticas", q: "¿Cuál es el área de un círculo de radio 3?", o: ["9π", "6π", "3π", "12π"], a: 0 },
+{ cat: "Matemáticas", q: "¿Cuántos lados tiene un pentágono?", o: ["4", "5", "6", "7"], a: 1 },
+{ cat: "Matemáticas", q: "¿Qué fracción es equivalente a 0.75?", o: ["1/2", "3/4", "2/3", "4/5"], a: 1 },
+{ cat: "Matemáticas", q: "¿Cuál es el mínimo común múltiplo de 4 y 6?", o: ["12", "24", "6", "8"], a: 0 },
+
+// Idiomas (5)
+{ cat: "Idiomas", q: "¿Cuántas letras tiene el alfabeto español?", o: ["26", "27", "28", "30"], a: 1 },
+{ cat: "Idiomas", q: "¿Qué idioma tiene más palabras?", o: ["Inglés", "Español", "Francés", "Chino"], a: 0 },
+{ cat: "Idiomas", q: "¿En qué país se habla el idioma más antiguo aún en uso?", o: ["Egipto", "India", "Tamil Nadu (India)", "Grecia"], a: 2 },
+{ cat: "Idiomas", q: "¿Qué palabra española proviene del árabe?", o: ["Guitarra", "Aceituna", "Chocolate", "Todas las anteriores"], a: 3 },
+{ cat: "Idiomas", q: "¿Cuál es el idioma más hablado en Internet?", o: ["Chino", "Español", "Inglés", "Árabe"], a: 2 },
+
+// Cine y Series (10)
+{ cat: "Series", q: "¿Cuántas temporadas tiene 'Breaking Bad'?", o: ["4", "5", "6", "7"], a: 1 },
+{ cat: "Series", q: "¿Quién interpreta a Walter White?", o: ["Aaron Paul", "Bryan Cranston", "Giancarlo Esposito", "Jonathan Banks"], a: 1 },
+{ cat: "Series", q: "¿En qué serie aparece el personaje Tyrion Lannister?", o: ["The Witcher", "The Last Kingdom", "Game of Thrones", "Vikingos"], a: 2 },
+{ cat: "Series", q: "¿Cuál es el nombre del bar en 'How I Met Your Mother'?", o: ["The Coffee House", "McLaren's Pub", "Ted's Place", "The Bar Downstairs"], a: 1 },
+{ cat: "Series", q: "¿Qué serie se desarrolla en el hospital 'Grey Sloan Memorial'?", o: ["House", "ER", "Grey's Anatomy", "The Good Doctor"], a: 2 },
+{ cat: "Series", q: "¿Cuál es la serie más vista en Netflix en 2023?", o: ["Stranger Things", "Wednesday", "Squid Game", "The Crown"], a: 1 },
+{ cat: "Series", q: "¿En qué país se filmó 'La Casa de Papel'?", o: ["México", "Argentina", "España", "Colombia"], a: 2 },
+{ cat: "Series", q: "¿Quién es el creador de 'The Office' (EE.UU.)?", o: ["Greg Daniels", "Ricky Gervais", "Steve Carell", "Michael Schur"], a: 0 },
+{ cat: "Series", q: "¿Cuántos hijos tiene Homer Simpson?", o: ["2", "3", "4", "5"], a: 1 },
+{ cat: "Series", q: "¿Qué serie tiene el episodio 'The Rains of Castamere'?", o: ["The Witcher", "Game of Thrones", "Vikingos", "Westworld"], a: 1 },
+
+// Ciencia Ficción (5)
+{ cat: "Ciencia Ficción", q: "¿Qué planeta es el hogar de Superman?", o: ["Marte", "Krypton", "Gotham", "Tatooine"], a: 1 },
+{ cat: "Ciencia Ficción", q: "¿Cuál es el nombre del androide en 'Blade Runner'?", o: ["C-3PO", "R2-D2", "Rachael", "Data"], a: 2 },
+{ cat: "Ciencia Ficción", q: "¿Quién es el villano principal en 'Matrix'?", o: ["Morpheus", "Trinity", "Agente Smith", "Neo"], a: 2 },
+{ cat: "Ciencia Ficción", q: "¿Qué nave es la del Capitán Kirk?", o: ["Millennium Falcon", "Serenity", "USS Enterprise", "Galactica"], a: 2 },
+{ cat: "Ciencia Ficción", q: "¿Cuál es el poder de los mutantes en 'X-Men'?", o: ["Teletransporte", "Fuerza sobrehumana", "Mutación genética", "Invisibilidad"], a: 2 },
+
+// Arte y Arquitectura (5)
+{ cat: "Arte", q: "¿Quién pintó 'El grito'?", o: ["Van Gogh", "Edvard Munch", "Picasso", "Dalí"], a: 1 },
+{ cat: "Arquitectura", q: "¿Dónde está la Torre Eiffel?", o: ["Londres", "Berlín", "París", "Roma"], a: 2 },
+{ cat: "Arte", q: "¿Qué movimiento artístico incluye a Salvador Dalí?", o: ["Impresionismo", "Surrealismo", "Cubismo", "Barroco"], a: 1 },
+{ cat: "Arte", q: "¿Qué escultura se encuentra en Río de Janeiro?", o: ["Cristo Redentor", "Estátua da Liberdade", "David", "La Pietà"], a: 0 },
+{ cat: "Arquitectura", q: "¿Qué país construyó las pirámides escalonadas de Teotihuacán?", o: ["Maya", "Azteca", "Inca", "Olmeca"], a: 1 },
+
+// Curiosidades (6)
+{ cat: "Curiosidades", q: "¿Cuántos años tiene un siglo?", o: ["50", "100", "150", "200"], a: 1 },
+{ cat: "Curiosidades", q: "¿Qué planeta gira en sentido contrario al resto?", o: ["Urano", "Venus", "Marte", "Plutón"], a: 1 },
+{ cat: "Curiosidades", q: "¿Cuántos segundos hay en un día?", o: ["86,400", "3,600", "24,000", "1,440"], a: 0 },
+{ cat: "Curiosidades", q: "¿Qué animal puede dormir 3 años seguidos?", o: ["Murciélago", "Caracol", "Perezoso", "Oruga"], a: 1 },
+{ cat: "Curiosidades", q: "¿Qué letra no aparece en los números del 1 al 999 en inglés?", o: ["A", "B", "C", "D"], a: 0 },
+{ cat: "Curiosidades", q: "¿Cuanto mide la anaconnda más grande del mundo?", o: ["10 metros","20 metros","200 metros", "5 metros"], a: 2 },
+];
+
+    const setup = document.getElementById('setup');
+    const game = document.getElementById('game');
+    const startBtn = document.getElementById('start');
+    const nextBtn = document.getElementById('next');
+    const restartBtn = document.getElementById('restart');
+    const playersSel = document.getElementById('players');
+    const questionEl = document.getElementById('question');
+    const optionsEl = document.getElementById('options');
+    const timerEl = document.getElementById('timer');
+    const scoreboardEl = document.getElementById('scoreboard');
+    const playerNamesDiv = document.getElementById('playerNames');
+    const turnCounterEl = document.getElementById('turnCounter');
+
+    let numJugadores = 2;
+    let nombresJugadores = [];
+    let puntajes = [];
+    let preguntas = [];
+    let preguntaIndex = 0;
+    let jugadorActual = 0;
+    let tiempoRestante = 10;
+    let intervalo = null;
+
+    function crearInputsNombres() {
+      const num = parseInt(playersSel.value, 10);
+      playerNamesDiv.innerHTML = '';
+      for (let i = 0; i < num; i++) {
+        const label = document.createElement('label');
+        label.textContent = `Jugador ${i + 1}:`;
+        label.setAttribute('for', `nombreJ${i}`);
+        label.style.display = 'block';
+        label.style.marginTop = '10px';
+        label.style.fontWeight = '600';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = `nombreJ${i}`;
+        input.placeholder = `Nombre`;
+        input.setAttribute('aria-label', `Nombre del jugador ${i + 1}`);
+        playerNamesDiv.appendChild(label);
+        playerNamesDiv.appendChild(input);
+      }
+    }
+
+    playersSel.addEventListener('change', crearInputsNombres);
+    crearInputsNombres();
+
+    startBtn.addEventListener('click', iniciarJuego);
+
+    function iniciarJuego() {
+      numJugadores = parseInt(playersSel.value, 10);
+      nombresJugadores = [];
+
+      for (let i = 0; i < numJugadores; i++) {
+        const nombre = document.getElementById(`nombreJ${i}`).value.trim();
+        if (!nombre) {
+          alert(`Por favor, ingresa un nombre para el Jugador ${i + 1}.`);
+          return;
+        }
+        nombresJugadores.push(nombre);
+      }
+
+      preguntas = [...preguntasOriginales];
+      barajarArray(preguntas);
+      puntajes = Array(numJugadores).fill(0);
+      preguntaIndex = 0;
+      jugadorActual = 0;
+
+      setup.classList.add('hidden');
+      game.classList.remove('hidden');
+      nextBtn.style.display = 'none';
+      restartBtn.style.display = 'none';
+
+      mostrarPuntuacion();
+      mostrarPregunta();
+    }
+
+    function barajarArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function mostrarPuntuacion() {
+      scoreboardEl.innerHTML = '';
+      nombresJugadores.forEach((nombre, i) => {
+        const div = document.createElement('div');
+        div.textContent = `${nombre}: ${puntajes[i]} pts`;
+        scoreboardEl.appendChild(div);
+      });
+    }
+
+    function mostrarPregunta() {
+      if (preguntaIndex >= preguntas.length) {
+        finJuego();
+        return;
+      }
+
+      const p = preguntas[preguntaIndex];
+      if (!p) {
+        finJuego();
+        return;
+      }
+
+      turnCounterEl.textContent = `Turno ${preguntaIndex + 1}`;
+
+      clearInterval(intervalo);
+      tiempoRestante = 10;
+      actualizarTemporizador();
+      intervalo = setInterval(() => {
+        tiempoRestante--;
+        actualizarTemporizador();
+        if (tiempoRestante <= 0) {
+          clearInterval(intervalo);
+          tiempoAgotado();
+        }
+      }, 1000);
+
+      questionEl.innerHTML = `<strong>[${p.cat}]</strong><br>¡${nombresJugadores[jugadorActual]}! ${p.q}`;
+      questionEl.classList.remove('fade-in');
+      void questionEl.offsetWidth;
+      questionEl.classList.add('fade-in');
+
+      optionsEl.innerHTML = '';
+      nextBtn.style.display = 'none';
+
+      p.o.forEach((opcion, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = opcion;
+        btn.onclick = () => responder(idx, btn);
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    function actualizarTemporizador() {
+      timerEl.textContent = `⏳ Tiempo: ${tiempoRestante} segundos`;
+      timerEl.style.color = tiempoRestante <= 3 ? '#d32f2f' : '#4a90e2';
+    }
+
+    function tiempoAgotado() {
+      document.querySelectorAll('.option-btn').forEach(btn => {
+        btn.disabled = true;
+      });
+      nextBtn.style.display = 'inline-block';
+    }
+
+    function responder(seleccion, btn) {
+      clearInterval(intervalo);
+      const p = preguntas[preguntaIndex];
+
+      if (seleccion === p.a) {
+        puntajes[jugadorActual]++;
+      }
+
+      document.querySelectorAll('.option-btn').forEach((b, i) => {
+        b.disabled = true;
+        if (i === p.a) b.classList.add('correct');
+        else if (i === seleccion && i !== p.a) b.classList.add('wrong');
+      });
+
+      nextBtn.style.display = 'inline-block';
+    }
+
+    nextBtn.addEventListener('click', () => {
+      preguntaIndex++;
+      jugadorActual = (jugadorActual + 1) % numJugadores;
+
+      if (preguntaIndex < preguntas.length) {
+        mostrarPuntuacion();
+        mostrarPregunta();
+      } else {
+        finJuego();
+      }
+    });
+
+    restartBtn.addEventListener('click', () => {
+      location.reload();
+    });
+
+    function finJuego() {
+      clearInterval(intervalo);
+      const maxPts = Math.max(...puntajes);
+      const ganadores = nombresJugadores.filter((_, i) => puntajes[i] === maxPts);
+
+      let mensaje = `🎉 ¡Juego terminado!<br>`;
+      if (ganadores.length === 1) {
+        mensaje += `<strong>¡Ganador: ${ganadores[0]} con ${maxPts} puntos!</strong>`;
+      } else {
+        mensaje += `<strong>¡Empate! Ganadores: ${ganadores.join(', ')} con ${maxPts} puntos.</strong>`;
+      }
+
+      questionEl.innerHTML = mensaje;
+      optionsEl.innerHTML = '';
+      nextBtn.style.display = 'none';
+      restartBtn.style.display = 'inline-block';
+      timerEl.textContent = '';
+      turnCounterEl.textContent = '';
+    }
+  </script>
+</body>
+</html>
