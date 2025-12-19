@@ -1,0 +1,14 @@
+{
+  "name": "aemet-proxy",
+  "version": "1.0.0",
+  "description": "Proxy para API de AEMET",
+  "main": "api/weather.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'",
+    "start": "vercel dev"
+  },
+  "keywords": ["aemet", "weather", "proxy"],
+  "author": "",
+  "license": "MIT"
+}
